@@ -1,107 +1,65 @@
-# 🛠️ Guia de Montagem e Gravação: Sensor de Caixa d'Água com ESP32
+# 🛠️ Guia de Montagem e Gravação: TankMonitor ESP32 (3 Sensores)
 
 ---
 
-## 1. 🧪 Teste Imediato da Interface no seu Computador
+## 1. 🧪 Teste Imediato da Nova Interface
 
-Antes mesmo de passar o código para a placa, você pode testar o visual e a dinâmica da interface web agora mesmo:
-1. Abra o arquivo [dashboard_preview.html](file:///C:/Users/DATEN/.gemini/antigravity-ide/scratch/esp32-water-tank-monitor/dashboard_preview.html) no seu navegador (Edge, Chrome, etc.).
-2. No rodapé da tela, use o **"Simulador de Bancada"** para clicar em:
-   * **Ambas Secas (25%)**: A água desce e fica laranja indicando nível crítico.
-   * **Boia Meio Ativa (50%)**: A água sobe para 500 Litros em azul.
-   * **Ambas Ativas (100%)**: A caixa enche e brilha em ciano.
-   * **Erro / Travada**: Mostra o diagnóstico inteligente caso a boia de cima ative sem a de baixo.
-3. Teste a aba **"Config Wi-Fi"** (escanear redes) e a aba **"Admin"** (troca de senha do admin).
+Você pode testar a nova física dos **3 Sensores**, o **Alerta Crítico (< 25%)** e a **Edição de Litros** no simulador web:
+1. Abra o arquivo [dashboard_preview.html](file:///C:/Users/DATEN/.gemini/antigravity-ide/scratch/esp32-water-tank-monitor/dashboard_preview.html) no seu navegador.
+2. Use o **"Simulador de Bancada"** para testar:
+   * **🚨 Abaixo de 25%**: O banner vermelho de alerta crítico pisca na tela e a água fica vermelha alertando risco de desabastecimento.
+   * **Boia 1 Ativa (25% Reserva)**: Nível sobe para 25% (250 L em tanque padrão de 1.000 L).
+   * **Boias 1 e 2 Ativas (50% Médio)**: Nível sobe para 50% (500 L) em azul.
+   * **Todas Ativas (100% Cheia)**: Nível sobe para 100% (1.000 L) em ciano.
+   * **Erro / Inconsistência**: Diagnóstico inteligente caso uma boia superior ative sem a inferior.
+3. Teste alterar a **Capacidade do Reservatório** na aba *Config & Admin* (ex: digite 2.000 ou 500 Litros) e veja os cálculos recalcularem automaticamente!
 
 ---
 
-## 2. ⚡ Esquema de Ligação Elétrica (Fiação Simples)
+## 2. ⚡ Esquema de Ligação Elétrica (3 Boias)
 
-Graças ao resistor de **Pull-Up interno** do ESP32, **não é necessário nenhum resistor ou componente externo**.
+Com o pull-up interno ativado pelo código (`INPUT_PULLUP`), a fiação é direta e sem resistores adicionais:
 
-```
+```text
                 +---------------------+
                 |      ESP32 DEVKIT   |
                 |                     |
                 | [GND] ---------+----+
                 |                |
-(Boia 1 - 50%)  |                |
+(Boia 1 - 25%)  |                |
+  Fio 1 --------+----------------+
+  Fio 2 -------------------------[GPIO 17]
+                                 |
+(Boia 2 - 50%)                   |
   Fio 1 --------+----------------+
   Fio 2 -------------------------[GPIO 18]
                                  |
-(Boia 2 - 100%)                  |
+(Boia 3 - 100%)                  |
   Fio 1 --------+----------------+
   Fio 2 -------------------------[GPIO 19]
                 +---------------------+
 ```
 
-### 📌 Resumo dos Pinos:
-* **Boia 1 (Meio / 50%)**:
-  * Fio 1 -> **GND** do ESP32
-  * Fio 2 -> **GPIO 18** do ESP32
-* **Boia 2 (Topo / 100%)**:
-  * Fio 1 -> **GND** do ESP32
-  * Fio 2 -> **GPIO 19** do ESP32
-* **Alimentação**: Cabo USB conectado a um carregador de celular de 5V (1A ou 2A).
+### 📌 Pinos de Ligação:
+* **Boia 1 (Reserva / 25%)**:
+  * Fio 1 -> **GND**
+  * Fio 2 -> **GPIO 17**
+* **Boia 2 (Meio / 50%)**:
+  * Fio 1 -> **GND**
+  * Fio 2 -> **GPIO 18**
+* **Boia 3 (Topo / 100%)**:
+  * Fio 1 -> **GND**
+  * Fio 2 -> **GPIO 19**
 
 > [!NOTE]
-> **Orientação da Boia**: Instale as boias com a **setinha gravada no corpo plástico apontando para CIMA**. Assim, quando a água subir e levantar a haste, o contato interno fechará com o terra (GND), acionando o nível.
+> **Orientação das Boias**: Instale com a **setinha para CIMA**. Ao subir com a água, o contato fecha no terra (GND), acionando o patamar.
 
 ---
 
-## 3. 💻 Como Gravar o Código no ESP32 (Arduino IDE)
+## 3. 📲 Configurando a Capacidade do seu Tanque
 
-### Passo 1: Instalar o Suporte ao ESP32 (se ainda não tiver)
-1. Abra o **Arduino IDE** (versão 1.8.x ou 2.x).
-2. Vá em **Arquivo -> Preferências** (`Ctrl + ,`).
-3. No campo **URLs Adicionais para Gerenciadores de Placas**, cole a URL oficial da Espressif:
-   ```text
-   https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
-   ```
-4. Vá em **Ferramentas -> Placa -> Gerenciador de Placas**, pesquise por `esp32` (por Espressif Systems) e clique em **Instalar**.
-
-### Passo 2: Abrir o Projeto
-1. Abra o arquivo principal do projeto:
-   [esp32-water-tank-monitor.ino](file:///C:/Users/DATEN/.gemini/antigravity-ide/scratch/esp32-water-tank-monitor/esp32-water-tank-monitor.ino).
-2. O arquivo auxiliar [web_pages.h](file:///C:/Users/DATEN/.gemini/antigravity-ide/scratch/esp32-water-tank-monitor/web_pages.h) deve estar na mesma pasta (ele abrirá automaticamente em uma aba ao lado).
-
-### Passo 3: Configurar a Placa e Porta
-1. Em **Ferramentas -> Placa -> ESP32 Arduino**, selecione:
-   * **DOIT ESP32 DEVKIT V1** (ou *ESP32 Dev Module*).
-2. Em **Ferramentas -> Porta**, selecione a porta COM do seu ESP32 (ex: `COM7`, `COM8`, etc.).
-3. Clique na seta de **Upload / Carregar** (`Ctrl + U`).
-
-*(Se durante a gravação aparecer `Connecting........_____`, dê um toque rápido no botão físico `BOOT` do ESP32 para liberar a gravação).*
-
----
-
-## 4. 📲 Primeiro Acesso e Configuração do Wi-Fi
-
-1. **Ligue o ESP32**:
-   * Como é a primeira vez, ele não tem rede salva e o LED onboard começará a piscar.
-   * Ele criará uma rede Wi-Fi aberta com o nome: `CaixaDagua-Setup`.
-2. **Conecte pelo Celular ou Notebook**:
-   * Procure pelas redes Wi-Fi e conecte-se na rede `CaixaDagua-Setup`.
-   * Na maioria dos celulares, abrirá imediatamente a notificação *"Fazer login na rede Wi-Fi"* (Captive Portal). Se não abrir, abra o navegador e acesse:
-     ```
-     http://192.168.4.1
-     ```
-3. **Selecione o Wi-Fi da sua Casa**:
-   * Vá na aba **Config Wi-Fi** e clique em **Escanear Redes**.
-   * Escolha o Wi-Fi da sua casa, digite a senha e clique em **Salvar e Conectar**.
-   * O ESP32 salvará os dados na memória permanente (NVS) e reiniciará.
-4. **Pronto! Acesso na Rede Local**:
-   * Conecte seu celular de volta ao Wi-Fi da sua casa.
-   * Abra o navegador e digite o IP atribuído ao ESP32 pelo seu roteador (você pode ver pelo aplicativo do roteador ou pelo Monitor Serial da Arduino IDE).
-   * O painel agora atualizará os níveis da caixa em tempo real a cada 2 segundos!
-
----
-
-## 5. 🔒 Segurança & Recuperação de Senha
-
-* **Usuário Padrão**: `admin`
-* **Senha Inicial Padrão**: `admin`
-* Para trocar a senha, vá até a aba **Admin** do painel e insira sua nova senha.
-* **Trocou de roteador ou esqueceu a senha?**
-  * Pressione e segure o botão físico **`BOOT`** na placa ESP32 por **5 segundos**.
-  * O LED piscará rapidamente e o ESP32 apagará as credenciais de rede, voltando a criar a rede `CaixaDagua-Setup` para nova configuração!
+1. Acesse o painel pelo IP da sua rede ou por `192.168.4.1`.
+2. Vá até a aba **Config & Admin**.
+3. No campo **Capacidade Total do Reservatório (em Litros)**, insira o volume real da sua caixa d'água (ex: 500, 1000, 1500, 2000, 5000).
+4. Clique em **Salvar Capacidade em Litros**.
+5. O valor fica gravado permanentemente na memória Flash do microcontrolador e persistirá mesmo se faltar energia!
