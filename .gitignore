@@ -1,0 +1,14 @@
+# Compilador portátil e ferramentas locais
+tools/
+build/
+*.bin
+*.elf
+*.hex
+
+# Arquivos de sistema e IDEs
+.vscode/
+.idea/
+*.tmp
+*.bak
+Thumbs.db
+Desktop.ini
